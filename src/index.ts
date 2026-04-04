@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import { TTLStore } from "./store.js";
 import { StatsTracker } from "./stats.js";
+import { AgentTracker } from "./agents.js";
 
 const PORT = parseInt(process.env.PORT || "3100", 10);
 const TTL_MS = parseInt(process.env.TTL_MS || String(24 * 60 * 60 * 1000), 10);
@@ -21,6 +22,7 @@ const app = express();
 const relayStore = new TTLStore<string>(TTL_MS);
 const analysisStore = new TTLStore<AnalysisResult>(TTL_MS);
 const stats = new StatsTracker();
+const agentTracker = new AgentTracker();
 
 app.use(cors());
 app.use(express.json({ limit: "64kb" }));
@@ -90,6 +92,7 @@ app.post("/analysis/:actionId", (req, res) => {
   }
 
   stats.recordAnalysis(body.agentId, body.decision);
+  agentTracker.updateFromAnalysis(body.agentId, body.score, body.decision, body.instruction || "");
   res.status(201).json({ actionId, stored: true });
 });
 
@@ -103,6 +106,20 @@ app.get("/analysis/:actionId", (req, res) => {
   }
 
   res.json(analysis);
+});
+
+// ── Agent Registry ──────────────────────────────────────────
+
+app.post("/agents/:agentId", (req, res) => {
+  const { agentId } = req.params;
+  const body = req.body;
+
+  agentTracker.register(agentId, body);
+  res.status(201).json({ agentId, registered: true });
+});
+
+app.get("/agents", (_req, res) => {
+  res.json(agentTracker.getAll());
 });
 
 app.listen(PORT, () => {
