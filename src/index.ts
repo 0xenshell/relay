@@ -118,6 +118,16 @@ app.post("/agents/:agentId", (req, res) => {
   res.status(201).json({ agentId, registered: true });
 });
 
+app.patch("/agents/:agentId", (req, res) => {
+  const { agentId } = req.params;
+  const updated = agentTracker.update(agentId, req.body);
+  if (!updated) {
+    res.status(404).json({ error: "Agent not found" });
+    return;
+  }
+  res.json({ agentId, updated: true });
+});
+
 app.get("/agents", (_req, res) => {
   res.json(agentTracker.getAll());
 });

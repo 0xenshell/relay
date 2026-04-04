@@ -49,6 +49,19 @@ export class AgentTracker {
     this.dirty = true;
   }
 
+  update(agentId: string, data: Partial<AgentInfo>): boolean {
+    const existing = this.agents.get(agentId);
+    if (!existing) return false;
+
+    if (data.active !== undefined) existing.active = data.active;
+    if (data.ensName) existing.ensName = data.ensName;
+    if (data.address) existing.address = data.address;
+    if (data.spendLimit) existing.spendLimit = data.spendLimit;
+
+    this.dirty = true;
+    return true;
+  }
+
   updateFromAnalysis(agentId: string, score: number, decision: number, instruction: string): void {
     const agent = this.agents.get(agentId);
     if (!agent) {
