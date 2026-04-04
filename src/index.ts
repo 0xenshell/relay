@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { TTLStore } from "./store.js";
+import { StatsTracker } from "./stats.js";
 
 const PORT = parseInt(process.env.PORT || "3100", 10);
 const TTL_MS = parseInt(process.env.TTL_MS || String(24 * 60 * 60 * 1000), 10);
@@ -19,6 +20,7 @@ export interface AnalysisResult {
 const app = express();
 const relayStore = new TTLStore<string>(TTL_MS);
 const analysisStore = new TTLStore<AnalysisResult>(TTL_MS);
+const stats = new StatsTracker();
 
 app.use(cors());
 app.use(express.json({ limit: "64kb" }));
@@ -26,6 +28,11 @@ app.use(express.json({ limit: "64kb" }));
 // Health check
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", relayEntries: relayStore.size(), analysisEntries: analysisStore.size() });
+});
+
+// Stats
+app.get("/stats", (_req, res) => {
+  res.json(stats.getStats());
 });
 
 // ── Encrypted Payloads ──────────────────────────────────────
@@ -82,6 +89,7 @@ app.post("/analysis/:actionId", (req, res) => {
     return;
   }
 
+  stats.recordAnalysis(body.agentId, body.decision);
   res.status(201).json({ actionId, stored: true });
 });
 
