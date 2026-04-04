@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { RelayStore } from "../src/store.js";
+import { TTLStore } from "../src/store.js";
 
-describe("RelayStore", () => {
-  let store: RelayStore;
+describe("TTLStore", () => {
+  let store: TTLStore<string>;
 
   beforeEach(() => {
-    store = new RelayStore(1000); // 1 second TTL for testing
+    store = new TTLStore<string>(1000); // 1 second TTL for testing
   });
 
   afterEach(() => {
