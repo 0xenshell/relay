@@ -1,49 +1,44 @@
 /**
- * In-memory TTL store for encrypted instruction payloads.
- * Keyed by instructionHash (bytes32 hex string).
- * Auto-expires entries after the configured TTL.
- * Never decrypts - stores and serves opaque encrypted data.
+ * In-memory TTL store for arbitrary data.
+ * Keyed by string. Auto-expires entries after the configured TTL.
  */
 
-interface StoreEntry {
-  encryptedPayload: string;
+interface StoreEntry<T> {
+  data: T;
   createdAt: number;
 }
 
-export class RelayStore {
-  private store = new Map<string, StoreEntry>();
+export class TTLStore<T = string> {
+  private store = new Map<string, StoreEntry<T>>();
   private ttlMs: number;
   private cleanupInterval: ReturnType<typeof setInterval>;
 
   constructor(ttlMs: number = 24 * 60 * 60 * 1000) {
     this.ttlMs = ttlMs;
-
-    // Sweep expired entries every minute
     this.cleanupInterval = setInterval(() => this.cleanup(), 60 * 1000);
   }
 
-  put(key: string, encryptedPayload: string): boolean {
+  put(key: string, data: T): boolean {
     if (this.store.has(key)) {
-      return false; // Already exists
+      return false;
     }
     this.store.set(key, {
-      encryptedPayload,
+      data,
       createdAt: Date.now(),
     });
     return true;
   }
 
-  get(key: string): string | null {
+  get(key: string): T | null {
     const entry = this.store.get(key);
     if (!entry) return null;
 
-    // Check TTL
     if (Date.now() - entry.createdAt > this.ttlMs) {
       this.store.delete(key);
       return null;
     }
 
-    return entry.encryptedPayload;
+    return entry.data;
   }
 
   has(key: string): boolean {

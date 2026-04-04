@@ -1,22 +1,35 @@
 import express from "express";
 import cors from "cors";
-import { RelayStore } from "./store.js";
+import { TTLStore } from "./store.js";
 
 const PORT = parseInt(process.env.PORT || "3100", 10);
 const TTL_MS = parseInt(process.env.TTL_MS || String(24 * 60 * 60 * 1000), 10);
 
+export interface AnalysisResult {
+  agentId: string;
+  actionId: number;
+  score: number;
+  decision: number;
+  reasoning: string;
+  instruction: string;
+  target: string;
+  value: string;
+}
+
 const app = express();
-const store = new RelayStore(TTL_MS);
+const relayStore = new TTLStore<string>(TTL_MS);
+const analysisStore = new TTLStore<AnalysisResult>(TTL_MS);
 
 app.use(cors());
 app.use(express.json({ limit: "64kb" }));
 
 // Health check
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok", entries: store.size() });
+  res.json({ status: "ok", relayEntries: relayStore.size(), analysisEntries: analysisStore.size() });
 });
 
-// Store an encrypted payload
+// ── Encrypted Payloads ──────────────────────────────────────
+
 app.put("/relay/:hash", (req, res) => {
   const { hash } = req.params;
   const { encryptedPayload } = req.body;
@@ -31,7 +44,7 @@ app.put("/relay/:hash", (req, res) => {
     return;
   }
 
-  const created = store.put(hash, encryptedPayload);
+  const created = relayStore.put(hash, encryptedPayload);
   if (!created) {
     res.status(409).json({ error: "Payload already exists for this hash" });
     return;
@@ -40,11 +53,10 @@ app.put("/relay/:hash", (req, res) => {
   res.status(201).json({ hash, stored: true });
 });
 
-// Retrieve an encrypted payload
 app.get("/relay/:hash", (req, res) => {
   const { hash } = req.params;
 
-  const encryptedPayload = store.get(hash);
+  const encryptedPayload = relayStore.get(hash);
   if (!encryptedPayload) {
     res.status(404).json({ error: "Not found or expired" });
     return;
@@ -53,9 +65,41 @@ app.get("/relay/:hash", (req, res) => {
   res.json({ hash, encryptedPayload });
 });
 
+// ── Analysis Results ────────────────────────────────────────
+
+app.post("/analysis/:actionId", (req, res) => {
+  const { actionId } = req.params;
+  const body = req.body as AnalysisResult;
+
+  if (!body.reasoning || body.score === undefined || body.decision === undefined) {
+    res.status(400).json({ error: "Missing required fields (reasoning, score, decision)" });
+    return;
+  }
+
+  const created = analysisStore.put(actionId, body);
+  if (!created) {
+    res.status(409).json({ error: "Analysis already exists for this action" });
+    return;
+  }
+
+  res.status(201).json({ actionId, stored: true });
+});
+
+app.get("/analysis/:actionId", (req, res) => {
+  const { actionId } = req.params;
+
+  const analysis = analysisStore.get(actionId);
+  if (!analysis) {
+    res.status(404).json({ error: "Not found or expired" });
+    return;
+  }
+
+  res.json(analysis);
+});
+
 app.listen(PORT, () => {
   console.log(`ENShell Relay listening on port ${PORT}`);
   console.log(`TTL: ${TTL_MS / 1000}s`);
 });
 
-export { app, store };
+export { app, relayStore, analysisStore };
