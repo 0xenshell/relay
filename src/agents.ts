@@ -4,6 +4,7 @@ export interface AgentInfo {
   agentId: string;
   ensName: string;
   address: string;
+  owner: string;
   spendLimit: string;
   active: boolean;
   threatScore: number;
@@ -38,6 +39,7 @@ export class AgentTracker {
       agentId,
       ensName: data.ensName || `${agentId}.enshell.eth`,
       address: data.address || "",
+      owner: data.owner || existing?.owner || "",
       spendLimit: data.spendLimit || "0",
       active: data.active !== undefined ? data.active : true,
       threatScore: existing?.threatScore || 0,
