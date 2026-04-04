@@ -39,6 +39,14 @@ export class StatsTracker {
     setInterval(() => this.flush(), 30_000);
   }
 
+  recordRegistration(agentId: string): void {
+    if (agentId && !this.stats.knownAgents.includes(agentId)) {
+      this.stats.knownAgents.push(agentId);
+      this.stats.agentsRegistered = this.stats.knownAgents.length;
+      this.dirty = true;
+    }
+  }
+
   recordAnalysis(agentId: string, decision: number): void {
     this.stats.actionsScanned++;
 
@@ -46,11 +54,7 @@ export class StatsTracker {
     if (decision === 2) this.stats.actionsEscalated++;
     if (decision === 3) this.stats.threatsBlocked++;
 
-    if (agentId && !this.stats.knownAgents.includes(agentId)) {
-      this.stats.knownAgents.push(agentId);
-      this.stats.agentsRegistered = this.stats.knownAgents.length;
-    }
-
+    this.recordRegistration(agentId);
     this.dirty = true;
   }
 

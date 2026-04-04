@@ -115,6 +115,7 @@ app.post("/agents/:agentId", (req, res) => {
   const body = req.body;
 
   agentTracker.register(agentId, body);
+  stats.recordRegistration(agentId);
   res.status(201).json({ agentId, registered: true });
 });
 
